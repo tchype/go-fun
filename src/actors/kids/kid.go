@@ -27,10 +27,12 @@ func (kid Kid) Start() (chan<-Message, chan bool) {
 					output = "Gurgle...Burp..."
 				}
 
-				println(kid.Name() + ": " + output)
-			case <-kid.stop:
-				println(kid.Name() + ": Bye!")
-				kid.stop <- true //ackowledge the stop
+				println("OO " + kid.Name() + ": " + output)
+			case wait:= <-kid.stop:
+				println("OO " + kid.Name() + ": Bye!")
+				if wait {
+					kid.stop <- true //ackowledge the stop
+				}
 				return
 			}
 		}
@@ -44,7 +46,7 @@ func (kid Kid) Send(message Message) {
 }
 
 func (kid Kid) Stop(wait bool) {
-	kid.stop <- true
+	kid.stop <- wait
 
 	if wait {
 		<-kid.stop

@@ -1,8 +1,10 @@
 package main
 
-import "actors/kids"
+import (
+	"actors/kids"
+)
 
-func ooStyle() {
+func ooStyle(wait bool) {
 	bart := kids.CreateKid("Bart")
 	lisa := kids.CreateKid("Lisa")
 	bart.Start()
@@ -14,23 +16,13 @@ func ooStyle() {
 	bart.Send(kids.Feed)
 	lisa.Send(kids.Feed)
 
-	bart.Stop(true)
-	lisa.Stop(true)
-}
-
-func msgStyle() {
-	bart, _ := kids.CreateKid("Bart").Start()
-	lisa, _ := kids.CreateKid("Lisa").Start()
-
-	bart <- kids.Poke
-	lisa <- kids.Poke
-
-	bart <- kids.Feed
-	lisa <- kids.Feed
+	bart.Stop(wait)
+	lisa.Stop(wait)
 }
 
 const Poke = "Poke"
 const Feed = "Feed"
+
 func actor(name string) (messages chan string, stop chan bool) {
 	messages = make(chan string)
 	stop = make(chan bool)
@@ -49,9 +41,13 @@ func actor(name string) (messages chan string, stop chan bool) {
 				}
 
 				println(name + ": " + output)
-			case <-stop:
+			case wait := <-stop:
 				println(name + ": Bye!")
-				stop <- true
+				if wait {
+					println("About to acknowledge stop for " + name)
+					stop <- true
+					println("Finished sending stop to " + name)
+				}
 				return
 			}
 		}
@@ -60,22 +56,40 @@ func actor(name string) (messages chan string, stop chan bool) {
 	return
 }
 
-func actorStyle() {
-	bart, _ := actor("Bart")
-	lisa, _ := actor("Lisa")
+func actorStyle(wait bool) {
+	bart, bartStop := actor("Bart")
+	lisa, lisaStop := actor("Lisa")
 
 	bart <- Poke
 	lisa <- Poke
 
 	bart <- Feed
 	lisa <- Feed
+
+	lisaStop <- wait
+	bartStop <- wait
+
+	if wait {
+		// Wait for the actors to respond to the stop messages
+		for i := 0; i < 2; i++ {
+			println("i = ", i)
+			select {
+			case <-bartStop:
+				println("Bart is stopped")
+			case <-lisaStop:
+				println("Lisa is stopped")
+			}
+		}
+	}
+
 }
 
 func main() {
+	wait := true
 	println("\nOO STYLE:")
-	ooStyle()
-	println("\nOO AND MESSAGE STYLE")
-	msgStyle()
+	ooStyle(wait)
 	println("\nACTORS AND MESSAGES WITH RAW CHANNELS")
-	actorStyle()
+	actorStyle(wait)
+
+	panic("This is the end--what is still running?")
 }
